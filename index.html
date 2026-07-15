@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anime Stream Site Analysis</title>
+<style>
+  :root {
+    --bg: #0e0e10;
+    --surface: #16161a;
+    --card: #1c1c21;
+    --border: #2a2a32;
+    --accent: #7c6aff;
+    --accent2: #00d4a0;
+    --accent3: #ff6b6b;
+    --amber: #f5a623;
+    --text: #e8e8f0;
+    --muted: #7a7a90;
+    --radius: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 14px; line-height: 1.6; }
+
+  header { padding: 48px 40px 32px; border-bottom: 1px solid var(--border); }
+  header .eyebrow { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); margin-bottom: 10px; }
+  header h1 { font-size: 28px; font-weight: 600; color: #fff; line-height: 1.2; }
+  header p { color: var(--muted); margin-top: 8px; font-size: 13px; }
+
+  .container { max-width: 1100px; margin: 0 auto; padding: 32px 40px; }
+
+  /* KPI row */
+  .kpi-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 36px; }
+  .kpi { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+  .kpi .num { font-size: 26px; font-weight: 700; color: #fff; }
+  .kpi .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 4px; }
+  .kpi.green .num { color: var(--accent2); }
+  .kpi.purple .num { color: var(--accent); }
+  .kpi.red .num { color: var(--accent3); }
+  .kpi.amber .num { color: var(--amber); }
+
+  /* Section title */
+  .section-title { font-size: 13px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+
+  /* Site grid */
+  .site-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-bottom: 36px; }
+  .site-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; position: relative; }
+  .site-card.success { border-left: 3px solid var(--accent2); }
+  .site-card.partial { border-left: 3px solid var(--amber); }
+  .site-card.fail { border-left: 3px solid var(--accent3); }
+  .site-card .site-num { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+  .site-card .site-name { font-size: 14px; font-weight: 600; color: #fff; margin-bottom: 8px; }
+  .site-card .site-url { font-size: 11px; color: var(--accent); font-family: monospace; margin-bottom: 10px; word-break: break-all; }
+  .site-card .streams-found { font-size: 22px; font-weight: 700; color: #fff; }
+  .site-card .streams-label { font-size: 11px; color: var(--muted); }
+  .site-card .providers { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; }
+
+  /* badges */
+  .badge { display: inline-block; font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: 500; }
+  .b-green { background: #0d2e1e; color: #00d4a0; border: 1px solid #00d4a040; }
+  .b-red { background: #2e0d0d; color: #ff6b6b; border: 1px solid #ff6b6b40; }
+  .b-amber { background: #2e1e0d; color: #f5a623; border: 1px solid #f5a62340; }
+  .b-purple { background: #1a1530; color: #a89aff; border: 1px solid #7c6aff40; }
+  .b-gray { background: #1e1e24; color: var(--muted); border: 1px solid var(--border); }
+  .b-blue { background: #0d1e2e; color: #60a5fa; border: 1px solid #60a5fa40; }
+
+  /* Tables */
+  .tbl-wrap { margin-bottom: 36px; overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { background: var(--card); color: var(--muted); font-weight: 500; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  td { padding: 9px 12px; border-bottom: 1px solid #1e1e26; vertical-align: top; color: var(--text); }
+  tr:hover td { background: #1a1a20; }
+  td .mono { font-family: monospace; font-size: 11px; color: #60a5fa; word-break: break-all; }
+  td .note { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  /* Shared providers highlight */
+  .shared-row td { background: #1a1530; }
+  .shared-row:hover td { background: #1e1840; }
+
+  /* Stream URL list */
+  .url-block { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 10px; }
+  .url-block .url-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+  .url-block .url-text { font-family: monospace; font-size: 11px; color: #60a5fa; word-break: break-all; }
+
+  /* Legend */
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; font-size: 12px; color: var(--muted); }
+  .legend span { display: flex; align-items: center; gap: 6px; }
+  .legend .dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+
+  footer { border-top: 1px solid var(--border); padding: 20px 40px; color: var(--muted); font-size: 11px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div style="max-width:1100px;margin:0 auto;">
+    <div class="eyebrow">Stream Extraction Report</div>
+    <h1>Anime Stream Site Analysis</h1>
+    <p>10 sites analyzed · Common &amp; unique stream providers identified · Naruto test episodes</p>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- KPI row -->
+  <div class="kpi-row">
+    <div class="kpi purple"><div class="num">10</div><div class="label">Sites tested</div></div>
+    <div class="kpi green"><div class="num">6</div><div class="label">Working</div></div>
+    <div class="kpi amber"><div class="num">3</div><div class="label">Partial</div></div>
+    <div class="kpi red"><div class="num">1</div><div class="label">Failed</div></div>
+    <div class="kpi"><div class="num">38+</div><div class="label">Stream URLs</div></div>
+  </div>
+
+  <!-- Site cards -->
+  <div class="section-title">Per-site results</div>
+  <div class="legend">
+    <span><span class="dot" style="background:#00d4a0"></span>Working</span>
+    <span><span class="dot" style="background:#f5a623"></span>Partial</span>
+    <span><span class="dot" style="background:#ff6b6b"></span>Failed</span>
+  </div>
+  <div class="site-grid">
+
+    <div class="site-card success">
+      <div class="site-num">#1</div>
+      <div class="site-name">toon-stream.site</div>
+      <div class="site-url">toon-stream.site/episode/naruto-shippuden-1x2/</div>
+      <div class="streams-found">4</div><div class="streams-label">streams found from 16 embeds</div>
+      <div class="providers">
+        <span class="badge b-green">Turbo×2</span>
+        <span class="badge b-green">Vidmoly</span>
+        <span class="badge b-green">Play (as-cdn21)</span>
+        <span class="badge b-amber">GDMirrorbot (no play)</span>
+        <span class="badge b-red">AbyssPlayer (no output)</span>
+        <span class="badge b-red">Cloudy (AES key needed)</span>
+      </div>
+    </div>
+
+    <div class="site-card success">
+      <div class="site-num">#2</div>
+      <div class="site-name">anikuro.to</div>
+      <div class="site-url">anikuro.to/watch/20:1</div>
+      <div class="streams-found">14</div><div class="streams-label">streams found (best of all sites)</div>
+      <div class="providers">
+        <span class="badge b-green">freevideoupload.xyz</span>
+        <span class="badge b-green">MewStream/MegaPlay</span>
+        <span class="badge b-green">AllAnime/WixMP</span>
+        <span class="badge b-green">burntburst45 (sub+dub)</span>
+        <span class="badge b-green">EchoVideo</span>
+        <span class="badge b-amber">ninstream (expiring)</span>
+      </div>
+    </div>
+
+    <div class="site-card success">
+      <div class="site-num">#3</div>
+      <div class="site-name">9anime.vip</div>
+      <div class="site-url">9anime.vip/watch/naruto-k12?ep=k12_1</div>
+      <div class="streams-found">1</div><div class="streams-label">stream found</div>
+      <div class="providers">
+        <span class="badge b-green">fstream365 → mistydawn88.shop</span>
+        <span class="badge b-blue">HLS obfuscated token path</span>
+      </div>
+    </div>
+
+    <div class="site-card fail">
+      <div class="site-num">#4</div>
+      <div class="site-name">aniwatch.us.com</div>
+      <div class="site-url">aniwatch.us.com/naruto-shippuden-season-1-episode-1/</div>
+      <div class="streams-found">0</div><div class="streams-label">extraction failed</div>
+      <div class="providers">
+        <span class="badge b-red">hglink.to → masukestin.com</span>
+        <span class="badge b-red">Stream params not extractable</span>
+      </div>
+    </div>
+
+    <div class="site-card partial">
+      <div class="site-num">#5</div>
+      <div class="site-name">embedmaster.link</div>
+      <div class="site-url">embedmaster.link/tv/46260/1/1</div>
+      <div class="streams-found">3</div><div class="streams-label">MITM captures only (live stalled)</div>
+      <div class="providers">
+        <span class="badge b-amber">DoodStream (token-rotating)</span>
+        <span class="badge b-red">MixDrop (expired)</span>
+        <span class="badge b-amber">AbyssPlayer/Sora</span>
+        <span class="badge b-red">embdmstrplayer /play step stalled</span>
+      </div>
+    </div>
+
+    <div class="site-card partial">
+      <div class="site-num">#6</div>
+      <div class="site-name">aniwaves.ru</div>
+      <div class="site-url">aniwaves.ru/watch/naruto-shippuuden-76416/ep-100</div>
+      <div class="streams-found">1</div><div class="streams-label">of 3 DUB servers worked</div>
+      <div class="providers">
+        <span class="badge b-green">EchoVideo (Vidplay DUB)</span>
+        <span class="badge b-red">BYFMS/gn1r5n (UTF-8 error)</span>
+        <span class="badge b-gray">myvidplay (JS needed)</span>
+      </div>
+    </div>
+
+    <div class="site-card success">
+      <div class="site-num">#7</div>
+      <div class="site-name">anizone.to</div>
+      <div class="site-url">anizone.to/anime/spjuxray/3</div>
+      <div class="streams-found">5</div><div class="streams-label">3 quality + 2 audio tracks</div>
+      <div class="providers">
+        <span class="badge b-green">seiryuu.vid-cdn.xyz</span>
+        <span class="badge b-green">360p / 720p / 1080p</span>
+        <span class="badge b-green">JP + EN audio tracks</span>
+      </div>
+    </div>
+
+    <div class="site-card success">
+      <div class="site-num">#8</div>
+      <div class="site-name">player.vidlove.cc</div>
+      <div class="site-url">player.vidlove.cc/embed/tv/46260/4/62</div>
+      <div class="streams-found">1</div><div class="streams-label">from /self source decryption</div>
+      <div class="providers">
+        <span class="badge b-green">hydrastreaming.lat</span>
+        <span class="badge b-blue">Long obfuscated token HLS</span>
+      </div>
+    </div>
+
+    <div class="site-card partial">
+      <div class="site-num">#9</div>
+      <div class="site-name">m4uhd.page</div>
+      <div class="site-url">ww1.m4uhd.page/watch-tvseries-naruto-shippuden-20072017-242652.html</div>
+      <div class="streams-found">0 live / 3 MITM</div><div class="streams-label">ppzj AES body blocks live extraction</div>
+      <div class="providers">
+        <span class="badge b-red">ppzj-youtube.cfd (AES body, JS needed)</span>
+        <span class="badge b-red">AbyssPlayer (stalled)</span>
+        <span class="badge b-red">vidsrcme.ru 404</span>
+      </div>
+    </div>
+
+    <div class="site-card success">
+      <div class="site-num">#10</div>
+      <div class="site-name">animotvslash.org</div>
+      <div class="site-url">animotvslash.org/naruto-shippuuden-episode-251/</div>
+      <div class="streams-found">4</div><div class="streams-label">HLS ×3 variants + 1080p MP4</div>
+      <div class="providers">
+        <span class="badge b-green">203.188.166.89 main HLS</span>
+        <span class="badge b-green">CF + CF-native HLS</span>
+        <span class="badge b-green">1080p direct MP4</span>
+        <span class="badge b-green">EN + JP audio tracks</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Common providers table -->
+  <div class="section-title" style="margin-top:8px">Common providers (shared across sites)</div>
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Provider / CDN</th>
+          <th>Sites</th>
+          <th>Type</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="shared-row">
+          <td><strong>EchoVideo</strong><div class="mono">hlsxst3.echovideo.to / play.echovideo.ru</div></td>
+          <td><span class="badge b-purple">#2 anikuro</span> <span class="badge b-purple">#6 aniwaves</span></td>
+          <td><span class="badge b-green">HLS m3u8</span></td>
+          <td class="note">Strongest shared backend. Powers "Vidplay" on aniwaves and "animix" source on anikuro. Same CDN, different embed wrappers.</td>
+        </tr>
+        <tr class="shared-row">
+          <td><strong>AbyssPlayer</strong><div class="mono">abyssplayer.com</div></td>
+          <td><span class="badge b-purple">#1 toon-stream</span> <span class="badge b-purple">#9 m4uhd</span></td>
+          <td><span class="badge b-amber">HLS (stalled both)</span></td>
+          <td class="note">Appears on 2 sites. Both runs failed to extract — short-code embed likely requires JS execution.</td>
+        </tr>
+        <tr class="shared-row">
+          <td><strong>AllAnime / WixMP</strong><div class="mono">repackager.wixmp.com</div></td>
+          <td><span class="badge b-purple">#2 anikuro</span></td>
+          <td><span class="badge b-green">HLS multi-quality</span></td>
+          <td class="note">Widely used upstream across many anime aggregators. 360p + 1080p/720p/480p variants. Known to power dozens of sites via AllAnime GraphQL.</td>
+        </tr>
+        <tr class="shared-row">
+          <td><strong>VidSrc / vidsrcme.ru</strong></td>
+          <td><span class="badge b-purple">#9 m4uhd</span></td>
+          <td><span class="badge b-red">Failed (404)</span></td>
+          <td class="note">IMDB-ID based embed — widely used in movie/TV scrapers. Episode path returned 404 in this test.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Unique providers table -->
+  <div class="section-title">Unique providers (site-exclusive)</div>
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Provider</th>
+          <th>Site</th>
+          <th>Type</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>TurboVid HLS</strong><div class="mono">cdn2.turboviplay.com</div></td>
+          <td><span class="badge b-blue">#1 toon-stream</span></td>
+          <td><span class="badge b-green">HLS m3u8</span></td>
+          <td><span class="badge b-green">✓ Working</span><div class="note">2 streams (data/ + data3/ paths)</div></td>
+        </tr>
+        <tr>
+          <td><strong>as-cdn21.top</strong><div class="mono">Play server</div></td>
+          <td><span class="badge b-blue">#1 toon-stream</span></td>
+          <td><span class="badge b-green">HLS m3u8</span></td>
+          <td><span class="badge b-green">✓ Working</span><div class="note">POST /getVideo API with md5+expires token</div></td>
+        </tr>
+        <tr>
+          <td><strong>freevideoupload.xyz</strong></td>
+          <td><span class="badge b-blue">#2 anikuro</span></td>
+          <td><span class="badge b-green">HLS m3u8</span></td>
+          <td><span class="badge b-green">✓ Working</span><div class="note">Primary/best stream on anikuro — direct from animepower API</div></td>
+        </tr>
+        <tr>
+          <td><strong>burntburst45.store</strong><div class="mono">hlsx3cdn</div></td>
+          <td><span class="badge b-blue">#2 anikuro</span></td>
+          <td><span class="badge b-green">HLS m3u8</span></td>
+          <td><span class="badge b-green">✓ Working</span><div class="note">Sub + Dub separate paths (/naruto/ and /naruto-dub/)</div></td>
+        </tr>
+        <tr>
+          <td><strong>ninstream.com</strong></td>
+          <td><span class="badge b-blue">#2 anikuro</span></td>
+          <td><span class="badge b-green">HLS playlist</span></td>
+          <td><span class="badge b-amber">~ Time-limited</span><div class="note">Unix timestamp in URL path; expires quickly</div></td>
+        </tr>
+        <tr>
+          <td><strong>fstream365 → mistydawn88.shop</strong></td>
+          <td><span class="badge b-blue">#3 9anime.vip</span></td>
+          <td><span class="badge b-green">HLS m3u8</span></td>
+          <td><span class="badge b-green">✓ Working</span><div class="note">Obfuscated hex path in embed URL; unique to this site</div></td>
+        </tr>
+        <tr>
+          <td><strong>hglink.to → masukestin.com</strong></td>
+          <td><span class="badge b-blue">#4 aniwatch.us.com</span></td>
+          <td><span class="badge b-red">Failed</span></td>
+          <td><span class="badge b-red">✗ Broken</span><div class="note">Stream params not extractable from embed page</div></td>
+        </tr>
+        <tr>
+          <td><strong>embdmstrplayer.com</strong><div class="mono">via embedmaster.link</div></td>
+          <td><span class="badge b-blue">#5 embedmaster</span></td>
+          <td><span class="badge b-amber">Partial</span></td>
+          <td><span class="badge b-amber">~ Stalled</span><div class="note">3-step chain (→/watch→/play) breaks at step 3; fell back to MITM captures</div></td>
+        </tr>
+        <tr>
+          <td><strong>DoodStream / cloudatacdn</strong></td>
+          <td><span class="badge b-blue">#5 embedmaster</span></td>
+          <td><span class="badge b-amber">MP4</span></td>
+          <td><span class="badge b-amber">~ Token-rotating</span><div class="note">Token = current Unix timestamp; CDN path also rotates</div></td>
+        </tr>
+        <tr>
+          <td><strong>seiryuu.vid-cdn.xyz</strong></td>
+          <td><span class="badge b-blue">#7 anizone.to</span></td>
+          <td><span class="badge b-green">HLS multi-quality</span></td>
+          <td><span class="badge b-green">✓ Working</span><div class="note">UUID-based paths; cleanest quality ladder (360/720/1080p) + JP/EN audio</div></td>
+        </tr>
+        <tr>
+          <td><strong>hydrastreaming.lat</strong></td>
+          <td><span class="badge b-blue">#8 vidlove.cc</span></td>
+          <td><span class="badge b-green">HLS m3u8</span></td>
+          <td><span class="badge b-green">✓ Working</span><div class="note">Long obfuscated token URL; /self source decrypted successfully</div></td>
+        </tr>
+        <tr>
+          <td><strong>ppzj-youtube.cfd / VNStream</strong></td>
+          <td><span class="badge b-blue">#9 m4uhd</span></td>
+          <td><span class="badge b-amber">Partial</span></td>
+          <td><span class="badge b-amber">~ JS required</span><div class="note">AES-encrypted POST body; needs browser-side fetch to get real m3u8</div></td>
+        </tr>
+        <tr>
+          <td><strong>animotvslash / p2pplay.pro</strong><div class="mono">aurorioncreative.site CDN</div></td>
+          <td><span class="badge b-blue">#10 animotvslash</span></td>
+          <td><span class="badge b-green">HLS + MP4</span></td>
+          <td><span class="badge b-green">✓ Best overall</span><div class="note">Main IP + Cloudflare + CF-native HLS variants; 1080p direct MP4; EN+JP audio tracks</div></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- All stream URLs -->
+  <div class="section-title">All extracted stream URLs</div>
+
+  <div style="margin-bottom:8px;font-size:12px;color:var(--muted)">#1 toon-stream.site — 4 streams</div>
+  <div class="url-block"><div class="url-label">Vidmoly [Moly]</div><div class="url-text">https://box-1425-t10.vmeas.cloud/hls2/02/00913/7xk3teflc56y_,n,l,.urlset/master.m3u8?t=7GRLGAxXtZ3V-47rOY58kditkgVlKK-kGP_KbB20X8A=&amp;s=1784106428&amp;e=43200&amp;v=&amp;i=0.4&amp;sp=0&amp;asn=133443</div></div>
+  <div class="url-block"><div class="url-label">as-cdn21 [Play]</div><div class="url-text">https://as-cdn21.top/cdn/hls/650499231d5ef18ad6713fde8560484e/master.m3u8?md5=nNBadjKzl0fkGT39YoNmOA&amp;expires=1784113635</div></div>
+  <div class="url-block"><div class="url-label">TurboVid [Turbo] 1</div><div class="url-text">https://cdn2.turboviplay.com/data/679714fac80dd/679714fac80dd.m3u8</div></div>
+  <div class="url-block"><div class="url-label">TurboVid [Turbo] 2</div><div class="url-text">https://cdn2.turboviplay.com/data3/68a19118079c9/68a19118079c9.m3u8</div></div>
+
+  <div style="margin:16px 0 8px;font-size:12px;color:var(--muted)">#2 anikuro.to — 14 streams</div>
+  <div class="url-block"><div class="url-label">freevideoupload.xyz [BEST]</div><div class="url-text">https://freevideoupload.xyz/upload/Pn94ifkzibeukSEtHFC2mdd_/master.m3u8</div></div>
+  <div class="url-block"><div class="url-label">MewStream/MegaPlay [anikoto]</div><div class="url-text">https://cdn.mewstream.buzz/anime/abfd676ad3a01f1e8860fecff9f5b8e0/24b6c059b19995653d0d9a088478a067/master.m3u8</div></div>
+  <div class="url-block"><div class="url-label">AllAnime/WixMP 360p [allanime]</div><div class="url-text">https://repackager.wixmp.com/video.wixstatic.com/video/d68a71_7a4bd575491f4ffaa5abb9e5ee0eff8c/,360p,/mp4/file.mp4.urlset/master.m3u8</div></div>
+  <div class="url-block"><div class="url-label">AllAnime/WixMP 1080p/720p/480p [allanime]</div><div class="url-text">https://repackager.wixmp.com/video.wixstatic.com/video/02fdb7_cdb60ca825f4407ba5a0987c849e58ab/,1080p,720p,480p,/mp4/file.mp4.urlset/master.m3u8</div></div>
+  <div class="url-block"><div class="url-label">EchoVideo SUB [animix]</div><div class="url-text">https://hlsx3cdn.burntburst45.store/naruto/1/master.m3u8</div></div>
+  <div class="url-block"><div class="url-label">EchoVideo DUB [animix]</div><div class="url-text">https://hlsx3cdn.burntburst45.store/naruto-dub/1/master.m3u8</div></div>
+  <div class="url-block"><div class="url-label">ninstream [senshi] 1</div><div class="url-text">https://ninstream.com/bd7euEkc4CPosKZH3wXffA/1784122886/475ee55d-fca0-4ace-8832-49ea43d1cab9/playlist.m3u8</div></div>
+  <div class="url-block"><div class="url-label">ninstream [senshi] 2</div><div class="url-text">https://ninstream.com/rlvGQmA5nq5nMESMcShLKw/1784122886/703c51a3-026c-4010-944d-085982a12454/playlist.m3u8</div></div>
+
+  <div style="margin:16px 0 8px;font-size:12px;color:var(--muted)">#3 9anime.vip — 1 stream</div>
+  <div class="url-block"><div class="url-label">fstream365 → mistydawn88.shop</div><div class="url-text">https://mistydawn88.shop/m3u8/lYbwy9oZmMDS5ewtLV0Xv5Q2qO7NszZk3ZCwWjHMXYGUzxigt2wHEqhok03r7nMZ8WT3P9HB3yzWoz2RIgrEthdSaylhYd5VelcEmueGeGTZoEEXcBlvAElosAc45tI28+8MQXF+1TmXYFAOqb7SQkpOWb0tspo09wITOlpIJ43sXL6XMCx/1GqKVZ/MGln++h7zcitBhPlR+wgBrKVwvg==/playlist.m3u8</div></div>
+
+  <div style="margin:16px 0 8px;font-size:12px;color:var(--muted)">#5 embedmaster.link — 3 MITM captures</div>
+  <div class="url-block"><div class="url-label">DoodStream [token-rotating]</div><div class="url-text">https://dd605co.cloudatacdn.com/u5kj3chmsld3sdgge6ltan2edcrklzwudut2cu3irwmibqylqcqaqzeicm3q/900gx9p9vb~?token=1784144790</div></div>
+  <div class="url-block"><div class="url-label">AbyssPlayer/Sora [HLS-TS]</div><div class="url-text">https://jjvlopd0e9.sssrr.org/sora/49918165/V3dBQzIxU2QwZ3JnSCtibERoa2RTRnFJa2QxcDlhcW5jYmhuMnk2QXZNU</div></div>
+
+  <div style="margin:16px 0 8px;font-size:12px;color:var(--muted)">#6 aniwaves.ru — 1 stream</div>
+  <div class="url-block"><div class="url-label">EchoVideo Vidplay DUB</div><div class="url-text">https://hlsxst3.echovideo.to/cdn/092e3d2d14736a0ad5386790c695a1510edfb99d54e9a0ad29390aba3181db82f63f6b3ee05cb5b5d7835e32b0f61e28cdd7a184cfdd7c24f893257e28a84789e73b?t.m3u8</div></div>
+
+  <div style="margin:16px 0 8px;font-size:12px;color:var(--muted)">#7 anizone.to — 5 streams</div>
+  <div class="url-block"><div class="url-label">Master playlist</div><div class="url-text">https://seiryuu.vid-cdn.xyz/8d3f2c88-e5a6-4806-8f89-14f8e09b5238/master.m3u8</div></div>
+  <div class="url-block"><div class="url-label">360p</div><div class="url-text">https://seiryuu.vid-cdn.xyz/8d3f2c88-e5a6-4806-8f89-14f8e09b5238/video/360/playlist.m3u8</div></div>
+  <div class="url-block"><div class="url-label">720p</div><div class="url-text">https://seiryuu.vid-cdn.xyz/8d3f2c88-e5a6-4806-8f89-14f8e09b5238/video/720/playlist.m3u8</div></div>
+  <div class="url-block"><div class="url-label">1080p</div><div class="url-text">https://seiryuu.vid-cdn.xyz/8d3f2c88-e5a6-4806-8f89-14f8e09b5238/video/1080/playlist.m3u8</div></div>
+  <div class="url-block"><div class="url-label">Audio EN</div><div class="url-text">https://seiryuu.vid-cdn.xyz/8d3f2c88-e5a6-4806-8f89-14f8e09b5238/audio/1_en/playlist.m3u8</div></div>
+  <div class="url-block"><div class="url-label">Audio JA</div><div class="url-text">https://seiryuu.vid-cdn.xyz/8d3f2c88-e5a6-4806-8f89-14f8e09b5238/audio/0_ja/playlist.m3u8</div></div>
+
+  <div style="margin:16px 0 8px;font-size:12px;color:var(--muted)">#8 player.vidlove.cc — 1 stream</div>
+  <div class="url-block"><div class="url-label">hydrastreaming.lat [self]</div><div class="url-text">https://throbbing.hydrastreaming.lat/hls/MTx74NDE0ODAd7M3c6l5w6HRd7x7a4l5e8L3Zp9NDt3c6Ln79i2Y2Rf9Lm6J1L3Zk4ZGVe8Ln70a4w6Tt3_Y21p9PXZk4ZGVe8UGc6s2v5WVb5Q2Rf9Jn7V4x7Go8b5ZXM9MTx74NDIa4MTY4NTQc6MSZa4x7n7NJx7D0c6ODUf9Mq0I0Lq0Eb5OS4c6Nq0t3n7x7HI9MTAn7x73Jq0QWx79Q0s2ST01FX0FORFJPSUQn7Y2t39LTId7NTA5OTU5NDMn7y8XM9OTUf9MTYa4Lq0M1Lq0p94Jm6R5x7GU9Mr1Za4z9Wx79OC0d7x7FMb5w6Uo8RQa4An7Y3Q9OCZ1x7n7c6a4PTE4NS4b5Mq0Yf9NTUf9Nq0En7Y2c6k4ZW50VHo8d7ZT0d7Jm6k4a4PTQa4Jn7o8p9PTE2NTQd7Na4p93Ma4A3NDMa4.m3u8</div></div>
+
+  <div style="margin:16px 0 8px;font-size:12px;color:var(--muted)">#10 animotvslash.org — 4 streams</div>
+  <div class="url-block"><div class="url-label">Main HLS (IP direct)</div><div class="url-text">https://203.188.166.89/v4/-htQESkwPtrqNaLDQIx5IQ/1784104924/xq/69ibp/master.m3u8?v=1745345711&amp;k=M20gmNQJT6Is3khhGtGvig&amp;kx=1784096724</div></div>
+  <div class="url-block"><div class="url-label">Cloudflare Native HLS</div><div class="url-text">https://animotvslash.p2pplay.pro/v4/pl/s5r.aurorioncreative.site/xq/69ibp/master.1745345711.m3u8?k=31bpANKUnncS9oqGljuHkw&amp;kx=1784109324</div></div>
+  <div class="url-block"><div class="url-label">Direct 1080p MP4</div><div class="url-text">https://203.188.166.89/ZGOZjDw3jd8CrZyA3XydwA/1784104924/xq/ojqad5sg/skk61o/1080p.mp4/download?title=[Anime Time] Naruto Shippuden - 251 - The Man Named Kisame.mkv.mp4</div></div>
+
+</div>
+
+<footer>
+  <div style="max-width:1100px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;">
+    <span>Anime Stream Site Analysis · 10 sites · July 2025</span>
+    <span>Generated by stream extractor tooling</span>
+  </div>
+</footer>
+
+</body>
+</html>
